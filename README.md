@@ -3,7 +3,9 @@
 #### Implementation of StarGAN-v2 in tensorflow with modification to losses and model architecture.
 
 Original Paper: https://arxiv.org/abs/1912.01865
+
 Original implementation can be found here: https://github.com/clovaai/stargan-v2
+
 Tensorflow variant can be found here: https://github.com/clovaai/stargan-v2-tensorflow
 
 Mod log:
