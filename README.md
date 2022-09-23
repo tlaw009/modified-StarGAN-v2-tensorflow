@@ -1,2 +1,2 @@
 # StarGAN-v2-tensorflow-barebone
-Barebone implementation of StarGAN-v2 in tensorflow.
+Implementation of StarGAN-v2 in tensorflow with modification to losses and model architecture.
