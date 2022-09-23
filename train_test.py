@@ -22,8 +22,8 @@ from stargan_v2.m_starganv2 import StarGAN2
 # relative
 dataset = "afhq"
 
-train_dataset_path=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+"/datasets/"+dataset+"/train"
-weight_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+"/weights"
+train_dataset_path=os.path.dirname(os.path.abspath(__file__))+"/datasets/"+dataset+"/train"
+weight_path = os.path.dirname(os.path.abspath(__file__))+"/weights"
 gen_staging_params = ((64, 128, 256), (3, 3, 3),
                  (2,2,0), (2,2,0))
 
