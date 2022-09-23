@@ -36,7 +36,8 @@ disc_staging_params = ((64, 128, 256), (3, 3, 3),
 sgan1 = StarGAN2(train_dataset_path, (64,64), 3, 16, 64, batch_size=32,
 				gen_staging_params=gen_staging_params,
 				se_staging_params=se_staging_params,
-				disc_staging_params=disc_staging_params
+				disc_staging_params=disc_staging_params,
+				disc_update_multi=5
 				)
 
 sgan1.train(100)

@@ -130,17 +130,18 @@ class StarGAN2:
         
         return tf.reduce_mean(L_sty)
 
-    def apply_gradients(self, tapes, Ls):
+    def apply_gradients(self, tapes, Ls,  update_gen):
         
         g_tape, d_tape, f_tape, e_tape = tapes
         L_gf, L_d, L_e = Ls
-        
-        grad_g = g_tape.gradient(L_gf, self.g.trainable_variables)
+        if update_gen:
+            grad_g = g_tape.gradient(L_gf, self.g.trainable_variables)
+            self.g_opt.apply_gradients(zip(grad_g, self.g.trainable_variables))
+            
         grad_d = d_tape.gradient(L_d, self.d.trainable_variables)
         grad_f = f_tape.gradient(L_gf, self.f.trainable_variables)
         grad_e = e_tape.gradient(L_e, self.e.trainable_variables)
         
-        self.g_opt.apply_gradients(zip(grad_g, self.g.trainable_variables))
         self.d_opt.apply_gradients(zip(grad_d, self.d.trainable_variables))
         self.f_opt.apply_gradients(zip(grad_f, self.f.trainable_variables))
         self.e_opt.apply_gradients(zip(grad_e, self.e.trainable_variables))
@@ -158,7 +159,6 @@ class StarGAN2:
             g_s1 = self.g(imgs, s_hat1)
             g_s2 = self.g(imgs, s_hat2)
             
-            dy_xy = tf.gather_nd(self.d(imgs), ls)
             dty_xt = tf.gather_nd(self.d(timgs), tls)
 
             dty_gs1 = tf.gather_nd(self.d(g_s1), tls)
@@ -186,8 +186,7 @@ class StarGAN2:
             L_d = -adv_loss+self.gp_lam*gp_loss
             L_e = self.cyc_lam*cyc_loss+self.sty_lam*sty_loss
             
-#         if update_gen:
-        self.apply_gradients((g_tape, d_tape, f_tape, e_tape), (L_gf, L_d, L_e))
+            self.apply_gradients((g_tape, d_tape, f_tape, e_tape), (L_gf, L_d, L_e), update_gen)
 
 
 #         else:
@@ -220,15 +219,17 @@ class StarGAN2:
                     timg_b = (timg_b-127.5)/127.5 
                     tl_b = tf.constant([[i, tl_b[i].numpy()] for i in range(self.batch_size)])
                 
-                a_l, g_l, d_l, c_l, s_l = self.update(img_b, l_b, timg_b, tl_b)
+                if num_training%self.disc_update_multi == 0:     
+                    a_l, g_l, d_l, c_l, s_l = self.update(img_b, l_b, timg_b, tl_b)
+                else:
+                    a_l, g_l, d_l, c_l, s_l = self.update(img_b, l_b, timg_b, tl_b, False)
 
                 adv_losses.append(a_l.numpy())
                 gp_losses.append(g_l.numpy())
                 ds_losses.append(d_l.numpy())
                 cyc_losses.append(c_l.numpy())
                 sty_losses.append(s_l.numpy())
-#                 if num_training%self.disc_update_multi == 0:     
-#                 else:    
+
                 num_training = (num_training+1)%self.disc_update_multi
                 
             print("Epoch {:04d}".format(epo), "Avg. Adv Loss: ", np.mean(adv_losses), 
