@@ -219,7 +219,7 @@ class StarGAN2:
                     timg_b = (timg_b-127.5)/127.5 
                     tl_b = tf.constant([[i, tl_b[i].numpy()] for i in range(self.batch_size)])
                 
-                if num_training%self.disc_update_multi == 0:     
+                if num_training == 0:     
                     a_l, g_l, d_l, c_l, s_l = self.update(img_b, l_b, timg_b, tl_b)
                 else:
                     a_l, g_l, d_l, c_l, s_l = self.update(img_b, l_b, timg_b, tl_b, False)
