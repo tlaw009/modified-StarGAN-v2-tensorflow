@@ -44,3 +44,4 @@ class Mapper(Model):
         x = layers.Input(shape=(self.noise_dim,))
         return Model(inputs=x, outputs=self.call(x))
         
+        

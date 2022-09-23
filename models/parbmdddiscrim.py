@@ -24,7 +24,7 @@ from IPython import display
 class MDDiscriminator(Model):
     
     def __init__(self, image_shape_in, num_channel, num_domains, num_out_filter=16,
-                 stage_filters=(16, 32, 64), stage_kernels=(3, 3, 3),
+                 stage_filters=(64, 128, 256), stage_kernels=(3, 3, 3),
                  stage_strides_ds=(2,2,0)):
         super().__init__()
         
@@ -36,11 +36,14 @@ class MDDiscriminator(Model):
         self.num_channel = num_channel
         
         # ResBLK layers, downsample blk layers separated from upsample blk layers
-        self.adds_ds = []
+        
         self.relus1_ds = []
-        self.relus2_ds = []
         self.convs1_ds = []
+        
+        self.relus2_ds = []
         self.convs2_ds = []
+        
+        self.adds_ds = []
         self.dss = []
 
         for idx in range(len(stage_filters)):

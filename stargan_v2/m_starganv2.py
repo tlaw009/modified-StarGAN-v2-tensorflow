@@ -25,12 +25,14 @@ EPSILON = 1e-16
 
 class StarGAN2:
     
-    def __init__(self, dataset_path, image_shape, num_channel, noise_latent_dim, sc_dim, num_out_filter=16, disc_update_multi=5, 
+    def __init__(self, dataset_path, image_shape, num_channel, noise_latent_dim, sc_dim,
+                 gen_staging_params=None, se_staging_params=None, disc_staging_params=None,
+                 num_out_filter=16, disc_update_multi=5, 
                  batch_size=128, lr=3e-4, gp_lam=10.0, sty_lam=1.0, ds_lam=1.0, cyc_lam=1.0):
         assert len(image_shape) == 2
         assert image_shape[0]%16 == 0
         assert image_shape[1]%16 == 0
-        
+            
         self.image_shape = image_shape
         self.num_channel = num_channel
         self.noise_latent_dim = noise_latent_dim
@@ -49,25 +51,44 @@ class StarGAN2:
             print("WARNING: Dataset not loaded, Model in Generator mode")
         # NOTE: Dataset must be processed differently for different source and applications
         
-        self.g = Generator(self.image_shape, self.num_channel)
+        if not gen_staging_params == None:
+            stage_filters, stage_kernels, stage_strides_ds, stage_strides_us = gen_staging_params
+            self.g = Generator(self.image_shape, self.num_channel, stage_filters=stage_filters, stage_kernels=stage_kernels,
+                 stage_strides_ds=stage_strides_ds, stage_strides_us=stage_strides_us)
+        else: 
+            self.g = Generator(self.image_shape, self.num_channel)
+            
         self.f = Mapper(self.noise_latent_dim, self.sc_dim, self.num_domains)
-        self.e = StyleEncoder(self.image_shape, self.num_channel, self.sc_dim, self.num_domains)
-        self.d = MDDiscriminator(self.image_shape, self.num_channel, self.num_domains, num_out_filter=num_out_filter)
+        
+        if not se_staging_params == None:
+            stage_filters, stage_kernels, stage_strides_ds = se_staging_params
+            self.e = StyleEncoder(self.image_shape, self.num_channel, self.sc_dim, self.num_domains, stage_filters=stage_filters, stage_kernels=stage_kernels,
+                 stage_strides_ds=stage_strides_ds)
+        else:
+            self.e = StyleEncoder(self.image_shape, self.num_channel, self.sc_dim, self.num_domains)
+            
+        if not disc_staging_params == None:
+            stage_filters, stage_kernels, stage_strides_ds = disc_staging_params
+            self.d = MDDiscriminator(self.image_shape, self.num_channel, self.num_domains, num_out_filter=num_out_filter, stage_filters=stage_filters, stage_kernels=stage_kernels,
+                 stage_strides_ds=stage_strides_ds)
+        else:
+            self.d = MDDiscriminator(self.image_shape, self.num_channel, self.num_domains, num_out_filter=num_out_filter)
         
         self.g_opt = tf.keras.optimizers.Adam(lr)
         self.f_opt = tf.keras.optimizers.Adam(lr)
         self.e_opt = tf.keras.optimizers.Adam(lr)
         self.d_opt = tf.keras.optimizers.Adam(lr)
 
-    def adv_loss(self, dty_xt, dty_gs1, dty_gs2, dy_xy, dy_styrecg1):
+    def adv_loss(self, dty_xt, dty_gs1, dty_gs2):
         
-        l2nrgs1 = tf.math.sqrt(tf.reduce_sum(tf.math.add(dty_xt, -dty_gs1)**2, axis = 1)+EPSILON)
-        l2nrgs2 = tf.math.sqrt(tf.reduce_sum(tf.math.add(dty_xt, -dty_gs2)**2, axis = 1)+EPSILON)
-        l2ngs12 = tf.math.sqrt(tf.reduce_sum(tf.math.add(dty_gs1, -dty_gs2)**2, axis = 1)+EPSILON)
-        l2nrstyrec = tf.math.sqrt(tf.reduce_sum(tf.math.add(dy_xy, -dy_styrecg1)**2, axis = 1)+EPSILON)
+        crit_xt = tf.math.add(tf.math.sqrt(tf.reduce_sum(tf.math.add(dty_xt, -dty_gs2)**2, axis = 1)+EPSILON),
+                   -tf.math.sqrt(tf.reduce_sum(dty_xt**2, axis = 1)+EPSILON))
+        
+        crit_gs1 = tf.math.add(tf.math.sqrt(tf.reduce_sum(tf.math.add(dty_gs1, -dty_gs2)**2, axis = 1)+EPSILON),
+                   -tf.math.sqrt(tf.reduce_sum(dty_gs1**2, axis = 1)+EPSILON))
 
         # adv_loss
-        L_adv = l2nrgs1 + l2nrstyrec + l2nrgs2 - l2ngs12
+        L_adv = tf.math.add(crit_xt, -crit_gs1)
 
         return tf.reduce_mean(L_adv)
     
@@ -155,7 +176,7 @@ class StarGAN2:
             ety_gs1 = tf.gather_nd(self.e(g_s1), tls)
             ety_gs2 = tf.gather_nd(self.e(g_s2), tls)
             
-            adv_loss = self.adv_loss(dty_xt, dty_gs1, dty_gs2, dy_xy, dy_styrecg1)
+            adv_loss = self.adv_loss(dty_xt, dty_gs1, dty_gs2)
             gp_loss = self.gp_loss(xty_it, dty_xt, dty_gs2, tls)
             ds_loss = self.ds_loss(g_s1, g_s2)
             cyc_loss = self.cyc_loss(imgs, styrec_g1, styrec_g2)
@@ -163,7 +184,7 @@ class StarGAN2:
             
             L_gf = adv_loss-self.ds_lam*ds_loss+self.cyc_lam*cyc_loss+self.sty_lam*sty_loss
             L_d = -adv_loss+self.gp_lam*gp_loss
-            L_e = adv_loss+self.cyc_lam*cyc_loss+self.sty_lam*sty_loss
+            L_e = self.cyc_lam*cyc_loss+self.sty_lam*sty_loss
             
 #         if update_gen:
         self.apply_gradients((g_tape, d_tape, f_tape, e_tape), (L_gf, L_d, L_e))
@@ -189,12 +210,14 @@ class StarGAN2:
                 if self.num_channel == 1 and img_b.shape[-1] == 3:
                     img_b = tf.image.rgb_to_grayscale(img_b)
                     
+                img_b = (img_b-127.5)/127.5 
                 l_b = tf.constant([[i, l_b[i].numpy()] for i in range(self.batch_size)])
                 
                 for timg_b, tl_b in self.dataset.take(1):
                     if self.num_channel == 1 and img_b.shape[-1] == 3:
                         timg_b = tf.image.rgb_to_grayscale(timg_b)
                         
+                    timg_b = (timg_b-127.5)/127.5 
                     tl_b = tf.constant([[i, tl_b[i].numpy()] for i in range(self.batch_size)])
                 
                 a_l, g_l, d_l, c_l, s_l = self.update(img_b, l_b, timg_b, tl_b)
@@ -215,29 +238,60 @@ class StarGAN2:
                   ", Avg. STY Loss: ",  np.mean(sty_losses), flush=True)
 
             
-    def save_weights(self, g_path, d_path):
-        self.g.save_weights(g_path)
+    def save_weights(self, dir_path):
+        self.g.save_weights(dir_path+"/g.ckpt")
         print("Saved generator weights", flush=True)
-        self.d.save_weights(d_path)
+        self.d.save_weights(dir_path+"/d.ckpt")
         print("Saved discriminator weights", flush=True)
-    def load_weights(self, g_path, d_path):
+        self.f.save_weights(dir_path+"/f.ckpt")
+        print("Saved mapping network weights", flush=True)
+        self.e.save_weights(dir_path+"/e.ckpt")
+        print("Saved style encoder weights", flush=True)
+        
+    def load_weights(self, dir_path):
         try:
-            self.g.load_weights(g_path).expect_partial()
+            self.g.load_weights(dir_path+"/g.ckpt")
             print("Loaded generator weights", flush=True)
-            self.d.load_weights(d_path).expect_partial()
+            self.d.load_weights(dir_path+"/d.ckpt")
             print("Loaded discriminator weights", flush=True)
+            self.f.load_weights(dir_path+"/f.ckpt")
+            print("Loaded mapping network weights", flush=True)
+            self.e.load_weights(dir_path+"/e.ckpt")
+            print("Loaded style encoder weights", flush=True)
         except ValueError:
             print("ERROR: Please make sure weights are saved as .ckpt", flush=True)
     
-    def generate_samples(self, num_sam, path):
-        sam_seed = tf.random.normal((num_sam, self.noise_latent_dim))
-        sam_pics = self.g(sam_seed)
-        for i in range(sam_pics.shape[0]):
-            if self.num_channel == 1:
-                plt.imshow(sam_pics[i,:,:,0], cmap='gray')
-            else:   
-                plt.imshow(tf.cast(tf.math.round(sam_pics[i,:,:,:]*127.5+127.5), tf.int32))
-            plt.axis('off')
-            plt.savefig(path+'/image_{:04d}.png'.format(i))
-            plt.close('all')
+    def generate_sample(self, path, src, ref=None, t_d=0):
+        src_path, src_d = src
+
+        src_ib = tf.io.read_file(src_path)
+        src_img = tf.image.decode_jpeg(src_ib, channels=self.num_channel)
+        src_img = tf.expand_dims(tf.image.resize(src_img, self.image_shape),0)
+        src_d = tf.constant([0,src_d])
+        
+        if not ref==None:
+            ref_path, ref_d = ref
+            ref_ib = tf.io.read_file(ref_path)
+            ref_img = tf.image.decode_jpeg(ref_ib, channels=self.num_channel)
+            ref_img = tf.expand_dims(tf.image.resize(ref_img, self.image_shape),0)
+            ref_d = tf.constant([0,ref_d])
+            
+            sc = tf.gather_nd(self.e(ref_img), ref_d)
+            
+            samp = self.g(src_img, sc)
+            
+        else:
+            t_d = tf.constant([0,t_d])
+            samp_noise = tf.random.normal((1,self.noise_latent_dim))
+            sc = tf.gather_nd(self.f(samp_noise), t_d)
+                         
+            samp = self.g(src_img, sc)
+
+        if self.num_channel == 1:
+            plt.imshow(samp[0,:,:,0], cmap='gray')
+        else:   
+            plt.imshow(tf.cast(tf.math.round(samp[0,:,:,:]*127.5+127.5), tf.int32))
+        plt.axis('off')
+        plt.savefig(path+'/sample_image.png')
+        plt.close('all')
             

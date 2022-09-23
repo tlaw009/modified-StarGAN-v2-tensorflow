@@ -24,7 +24,7 @@ from IPython import display
 class Generator(Model):
     
     def __init__(self, image_shape_in, num_channel,
-                 stage_filters=(16, 32, 64), stage_kernels=(3, 3, 3),
+                 stage_filters=(64, 128, 256), stage_kernels=(3, 3, 3),
                  stage_strides_ds=(2,2,0), stage_strides_us=(2,2,0)):
         super().__init__()
         
@@ -37,22 +37,28 @@ class Generator(Model):
         self.num_channel = num_channel
         
         # ResBLK layers, downsample blk layers separated from upsample blk layers
-        self.adds_ds = []
-        self.adds_us = []
         self.ins1 = []
-        self.ins2 = []
-        self.adains1 = []
-        self.adains2 = []
         self.relus1_ds = []
-        self.relus2_ds = []
-        self.relus1_us = []
-        self.relus2_us = []
         self.convs1_ds = []
+        
+        self.ins2 = []
+        self.relus2_ds = []
         self.convs2_ds = []
-        self.convs1_us = []
-        self.convs2_us = []
+        
+        self.adds_ds = []
         self.dss = []
+
+        self.adains1 = []
+        self.relus1_us = []
+        self.convs1_us = []
+        
+        self.adains2 = []
+        self.relus2_us = []
+        self.convs2_us = []
+
+        self.adds_us = []
         self.uss = []
+        
         for idx in range(len(stage_filters)):
             self.adds_ds.append(layers.Add())
             self.adds_us.append(layers.Add())
@@ -97,7 +103,7 @@ class Generator(Model):
         
         # out conv 1x1
         self.out_conv11 = layers.Conv2D(self.num_channel, (1, 1),
-                                        strides=(1, 1), padding='same')
+                                        strides=(1, 1), padding='same', activation="tanh")
             
     def call(self, img_in, s_c):
         if img_in.shape[0] == None:

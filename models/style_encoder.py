@@ -22,7 +22,7 @@ from IPython import display
 class StyleEncoder(Model):
     
     def __init__(self, image_shape_in, num_channel, sc_dims,  num_domains,
-                 stage_filters=(16, 32, 64), stage_kernels=(3, 3, 3),
+                 stage_filters=(64, 128, 256), stage_kernels=(3, 3, 3),
                  stage_strides_ds=(2,2,0)):
         super().__init__()
         
@@ -34,11 +34,14 @@ class StyleEncoder(Model):
         self.num_channel = num_channel
         
         # ResBLK layers, downsample blk layers separated from upsample blk layers
-        self.adds_ds = []
+
         self.relus1_ds = []
-        self.relus2_ds = []
         self.convs1_ds = []
+        
+        self.relus2_ds = []
         self.convs2_ds = []
+        
+        self.adds_ds = []
         self.dss = []
 
         for idx in range(len(stage_filters)):
@@ -113,5 +116,6 @@ class StyleEncoder(Model):
                                         self.image_shape_in[1], self.num_channel))
         
         return Model(inputs=x, outputs=self.call(x))
+        
         
         
