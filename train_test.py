@@ -8,6 +8,9 @@ import imageio
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+# set appropriately before starting training
+
 import PIL
 from tensorflow.keras import layers
 import time
