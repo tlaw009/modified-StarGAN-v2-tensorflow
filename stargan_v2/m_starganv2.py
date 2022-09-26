@@ -195,7 +195,7 @@ class StarGAN2:
 
         return adv_loss, gp_loss, ds_loss, cyc_loss, sty_loss
         
-    def train(self, epochs=250):
+    def train(self, epochs=250, dir_path=None):
         num_training = 0
         for epo in range(epochs):
             adv_losses = []
@@ -237,6 +237,9 @@ class StarGAN2:
                   ", Avg. DS Loss: ",  np.mean(ds_losses), 
                   ", Avg. CYC Loss: ",  np.mean(cyc_losses), 
                   ", Avg. STY Loss: ",  np.mean(sty_losses), flush=True)
+            
+            if not dir_path == None:
+                self.save_weights(dir_path)
 
             
     def save_weights(self, dir_path):

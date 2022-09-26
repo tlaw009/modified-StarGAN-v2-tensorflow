@@ -40,7 +40,5 @@ sgan1 = StarGAN2(train_dataset_path, (64,64), 3, 16, 64, batch_size=32,
 				disc_update_multi=5
 				)
 
-sgan1.train(100)
-
-sgan1.save_weights(weight_path)
+sgan1.train(100, dir_path=weight_path)
 
