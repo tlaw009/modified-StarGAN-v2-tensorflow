@@ -74,9 +74,9 @@ class Generator(Model):
                                                strides=(1, 1), padding='same'))
             self.convs2_ds.append(layers.Conv2D(stage_filters[idx],(stage_kernels[idx],stage_kernels[idx]),
                                                strides=(1, 1), padding='same'))
-            self.convs1_us.append(layers.Conv2D(stage_filters[idx],(stage_kernels[idx],stage_kernels[idx]),
+            self.convs1_us.append(layers.Conv2D(stage_filters[-1-idx],(stage_kernels[-1-idx],stage_kernels[-1-idx]),
                                                strides=(1, 1), padding='same'))
-            self.convs2_us.append(layers.Conv2D(stage_filters[idx],(stage_kernels[idx],stage_kernels[idx]),
+            self.convs2_us.append(layers.Conv2D(stage_filters[-1-idx],(stage_kernels[-1-idx],stage_kernels[-1-idx]),
                                                strides=(1, 1), padding='same'))
             
             if stage_strides_ds[idx] == 0:
@@ -92,8 +92,6 @@ class Generator(Model):
             else:
                 self.uss.append(layers.Conv2DTranspose(stage_filters[-2-idx], (stage_kernels[idx],stage_kernels[idx]),
                                                strides=(stage_strides_us[idx],stage_strides_us[idx]), padding='same'))
-        self.convs1_us.reverse()
-        self.convs2_us.reverse()
         
         # in conv 1x1
         self.in_conv11 = layers.Conv2D(stage_filters[0], (1, 1),
