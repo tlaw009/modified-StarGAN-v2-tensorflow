@@ -24,8 +24,8 @@ from stargan_v2.m_starganv2 import StarGAN2
 # relative
 dataset = "afhq"
 
-train_dataset_path=os.path.dirname(os.path.abspath(__file__))+"/datasets/"+dataset+"/train"
-weight_path = os.path.dirname(os.path.abspath(__file__))+"/weights"
+train_dataset_path=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+"/datasets/"+dataset+"/train"
+weight_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))+"/weights"
 
 gen_staging_params = ((64, 128, 256), (3, 3, 3),
                  (2,2,0), (2,2,0))
@@ -42,6 +42,8 @@ sgan1 = StarGAN2(train_dataset_path, (112,112), 3, 16, 64, batch_size=32,
 				disc_staging_params=disc_staging_params,
 				disc_update_multi=5
 				)
+
+sgan1.load_weights(weight_path)
 
 sgan1.train(100, dir_path=weight_path)
 
